@@ -2,93 +2,115 @@
 import pygame
 import random
 
-# Onscreen score info
-def Your_score(score,tick):
-    value = score_font.render("Score: " + str(score), True, "red")
-    value_2 =score_font.render("Ticks: " + str(tick), True, "red")
-    screen.blit(value, [0, 0])
-    screen.blit(value_2, [0, 20])
-
-#Parameters
-dt = 0 #Ticks counter
-dir_x=1 #X Direction of the snake
-dir_y=0 #Y Direction of the snake
-block_size=20; #Size of a single block
-number_of_blocks=40; #How manty blocks in X and Y
-snake_length=3; #Starting snake length
-
-#Initialization
+# Parameters for every instance
 pygame.init()
-snake_list = [] #List of snake compartments
-screen_size=(number_of_blocks*block_size) #Size of the game window
-screen = pygame.display.set_mode([screen_size,screen_size]) #Initialization of the window
-score_font = pygame.font.SysFont("comicsansms", 20) #Font for the onscreen score
-clock = pygame.time.Clock() #Clock initialization
-pygame.display.set_caption('PBSnakeAI') #Window name
-player_pos = pygame.Vector2(round(number_of_blocks/4)*20) #Starting player position
-food = pygame.Vector2(random.randint(1,number_of_blocks-1)*20,random.randint(1,number_of_blocks-1)*20) #Starting food position
-running = True # While argument
+pygame.display.set_caption("PBSnakeAI")
+score_font = pygame.font.SysFont("calibri", 20)
+block_size = 20
+number_of_blocks = 20
 
-#Main game loop
-while running:   
-                     
-    #Clicked buttons handler
-    pygame.event.get()
-    keys = pygame.key.get_pressed()
-    if keys[pygame.K_w] and dir_y!=1:
-        dir_x=0
-        dir_y=-1
-    if keys[pygame.K_s] and dir_y!=-1:
-        dir_x=0
-        dir_y=1
-    if keys[pygame.K_a] and dir_x!=1:
-        dir_x=-1
-        dir_y=0
-    if keys[pygame.K_d] and dir_x!=-1:
-        dir_x=1
-        dir_y=0
+class PBSnakeAIgame:
+    # Initialization of the game
+    def __init__(self) -> None:
+        self.screen_size=number_of_blocks*block_size
+        self.screen = pygame.display.set_mode([self.screen_size,self.screen_size]
+        )
+        self.clock = pygame.time.Clock()
+        self.head = pygame.Vector2(round(number_of_blocks / 4) * 20,round(number_of_blocks / 4) * 20)
+        self.snake = [
+            self.head,
+            pygame.Vector2(self.head.x - block_size, self.head.y),
+        ]
+        self.score = 0
+        self.food = pygame.Vector2(0,0)
+        self.running = True
+        self.direction = 0
+        self.place_food()
 
-    #Moving snake head
-    player_pos.x+=block_size*dir_x
-    player_pos.y+=block_size*dir_y
+    # Drawing
+    def drawing_ui(self) -> None:
+        self.screen.fill("black") 
+        for snake_part in self.snake:
+            pygame.draw.rect(self.screen, "red",[snake_part.x,snake_part.y,block_size,block_size])
 
-    #Making list of snake parts
-    snake_Head = []
-    snake_Head.append(player_pos.x)
-    snake_Head.append(player_pos.y)
-    snake_list.append(snake_Head)
+        score_value = score_font.render("Score: " + str(self.score), True, "red")
+        self.screen.blit(score_value, [0, 0])
+        pygame.draw.rect(self.screen, "green", [self.food.x + 5, self.food.y + 5, 10, 10])
+        pygame.display.flip()
 
-    #Screen edges handler
-    if(player_pos.x>=screen_size-18 or player_pos.x<=-2 or player_pos.y>=screen_size-18 or player_pos.y<=-2):
-        print("koniec")
-        running=False
- 
-    #Removing tail
-    if len(snake_list) > snake_length:
-            del snake_list[0]
+    # Every game frame
+    def game_frame(self) -> None:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RIGHT:
+                    self.direction = 0
+                if event.key == pygame.K_LEFT:
+                    self.direction = 1
+                elif event.key == pygame.K_UP:
+                    self.direction = 2
+                elif event.key == pygame.K_DOWN:
+                    self.direction = 3
 
-    #Snake drawing
-    for x in snake_list:
-        pygame.draw.rect(screen, "red", [x[0], x[1], block_size, block_size])
+        self.move_snake(self.direction)
+        self.snake.insert(0, self.head)
 
-    #Scoreboard handling
-    Your_score(snake_length - 2,dt)
+        if self.detect_collision():
+            running = False
+            return running, self.score
+        
+        if self.head == self.food:
+            self.score += 1
+            self.place_food()
+        else:
+            self.snake.pop()
 
-    #Snake self collision
-    for i in snake_list[:-1]:
-        if i == snake_Head:
-            running=False
+        self.drawing_ui()
+        self.clock.tick(30)
+        return self.running, self.score
 
-    #Food spawn and draw
-    if player_pos.x == food.x and player_pos.y == food.y:
-        snake_length+=1
-        food = pygame.Vector2(random.randint(1,number_of_blocks-1)*20,random.randint(1,number_of_blocks-1)*20)
-    pygame.draw.rect(screen,"green",[food.x+5,food.y+5,10,10])
+    #Detecting collisions between walls and snake itself
+    def detect_collision(self) -> None:
+        if (
+            self.head.x > self.screen_size - block_size
+            or self.head.x < 0
+            or self.head.y > self.screen_size - block_size
+            or self.head.y < 0
+        ):
+            return True
+        if self.head in self.snake[1:]:
+            return True
 
-    pygame.display.flip()
-    screen.fill("black") #Clearing screen
-    dt+=1 #Tick coutner
-    clock.tick(30)#Setting tickrate
+    #Generating new place for a food
+    def place_food(self):
+        self.food = pygame.Vector2(
+            random.randint(0, number_of_blocks - 1) * 20,
+            random.randint(0, number_of_blocks - 1) * 20,
+        )
+        if self.food in self.snake:
+            self.place_food()
 
-print("Score:",snake_length-2,"Ticks: ",dt)
-pygame.quit()
+    #Moving snake
+    def move_snake(self, direction):
+        x = self.head.x
+        y = self.head.y
+        if direction == 0:
+            x += block_size
+        elif direction == 1:
+            x -= block_size
+        elif direction == 2:
+            y -= block_size
+        elif direction == 3:
+            y += block_size
+
+        self.head = pygame.Vector2(x,y)
+
+if __name__=="__main__":
+    game_object = PBSnakeAIgame()
+    while(True):
+        running, score = game_object.game_frame()
+        if running == 0: break
+    print("Wynik =",score)
+    pygame.quit()
