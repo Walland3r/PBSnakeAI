@@ -26,14 +26,15 @@ class PBSnakeAIgame:
         self.screen = pygame.display.set_mode([self.screen_size, self.screen_size])
         self.clock = pygame.time.Clock()
         self.ticks = 0
+        self.reward = 0
         self.snake_reset()
 
     # Reset of our snake
     def snake_reset(self) -> None:
         self.score = 0
         self.ticks = 0
-        self.reward = 0
         self.game_over = 0
+        self.reward = 0
 
         self.head = pygame.Vector2(
             round(number_of_blocks / 4) * 20, round(number_of_blocks / 4) * 20
@@ -100,8 +101,6 @@ class PBSnakeAIgame:
         # Food
         pygame.draw.rect(self.screen, "red", [self.food.x + 5, self.food.y + 5, 10, 10])
         pygame.display.flip()
-        while(True):
-            pass
 
     # Detecting collisions between walls and snake itself
     def detect_collision(self, pt=None) -> bool:
@@ -114,14 +113,14 @@ class PBSnakeAIgame:
             or pt.y > self.screen_size - block_size
             or pt.y < 0
         ):
-            return pt
+            return True
         # Hit itself
         if pt in self.snake[1:]:
             return True
+        return False
 
     # Every game frame
     def game_frame(self, action) -> Tuple[bool, int, int]:
-        reward = 0
         game_over = False
         self.ticks += 1
         for event in pygame.event.get():
@@ -131,50 +130,45 @@ class PBSnakeAIgame:
         self._move_snake(action)
         self.snake.insert(0, self.head)
 
-        if self.detect_collision() or self.ticks > 100 * len(self.snake):
-            reward -= 10
+        if self.detect_collision() or self.ticks > 70 * len(self.snake):
+            self.reward -= 10
             game_over = True
-            return game_over, self.score, reward
 
         if self.head == self.food:
             self.score += 1
-            self.reward += 10
+            self.reward += 20
             self._place_food()
         else:
             self.snake.pop()
 
         self._drawing_ui()
-        self.clock.tick(30)
-        return self.game_over, self.score, reward
+        self.clock.tick(60)
+        return game_over, self.score, self.reward
 
     def snake_vision(self):
-        up=-1
-        down=-2
-        left=-1
-        right=-2
-        for i in range(int(self.head.y), -20,-20):
-            up+=1
-            if self.detect_collision(pygame.Vector2(self.snake[0].x, i)):
-                break
-        for i in range(int(self.head.y), self.screen_size+20,20):
-            down+=1
-            if self.detect_collision(pygame.Vector2(self.snake[0].x, i)):
-                break
-        for i in range(int(self.head.x),-20,-20):
-            left+=1
-            if self.detect_collision(pygame.Vector2(i, self.snake[0].y)):
-                break
-        for i in range(int(self.head.x), self.screen_size+20,20):
-            right+=1
-            if self.detect_collision(pygame.Vector2(i, self.snake[0].y)):
-                break
-        return up,down,left,right
+        danger_directions = [0, 0, 0, 0]
+        x = round(self.snake[0].x)
+        y = round(self.snake[0].y)
 
-# Test of the game
-def test_game() -> None:
-    game = PBSnakeAIgame()
-    while True:
-        game_over, score, reward = game.game_frame([1, 0, 0])
-        if game_over == True:
-            game.snake_reset()
-    print("Final Score", score)
+        # Right
+        i = 0
+        while not self.detect_collision(pygame.Vector2(x + i, y)):
+            i += 20
+        danger_directions[0] = i / 20 - 1
+
+        i = 0
+        while not self.detect_collision(pygame.Vector2(x + i, y)):
+            i -= 20
+        danger_directions[1] = abs(i / 20 + 1)
+
+        i = 0
+        while not self.detect_collision(pygame.Vector2(x, y + i)):
+            i += 20
+        danger_directions[2] = i / 20 - 1
+
+        i = 0
+        while not self.detect_collision(pygame.Vector2(x, y + i)):
+            i -= 20
+        danger_directions[3] = abs(i / 20 + 1)
+
+        return danger_directions
