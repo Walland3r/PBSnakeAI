@@ -4,21 +4,8 @@ import random
 from collections import deque
 from game import PBSnakeAIgame
 from game import Direction
-from matplotlib import pyplot
 from model import Linear_QNet, QLineTrainer
 from helper import plot
-
-"""
-~~~~ Arguments for our neural network ~~~~
-Snake will "look" in 8 directions for food, walls, and itself.
-Arguments:
-1. Snake moving direction (4), one of them will be '1' at a time.
-2. Distance to danger (4).
-3. 
-Total: 16
-
-"""
-
 
 class GameAgent:
     def __init__(self) -> None:
@@ -26,6 +13,7 @@ class GameAgent:
         self.epsilon = 0
         self.gamma = 0.9
         self.number_of_games = 0
+
         self.model = Linear_QNet(12, 256, 3)
         self.trainer = QLineTrainer(self.model, learning_rate=0.001, gamma=self.gamma)
 
@@ -42,10 +30,12 @@ class GameAgent:
             going_down,
             going_right,
             going_left,
-            danger_up,
-            danger_down,
-            danger_left,
-            danger_right,
+
+            danger_up / 10,
+            danger_down / 10,
+            danger_left / 10,
+            danger_right / 10,
+
             game.food.x < game.head.x,
             game.food.x > game.head.x,
             game.food.y < game.head.y,
@@ -103,7 +93,7 @@ def train():
 
             if total_score > best_score:
                 best_score = total_score
-                #agent.model.save()
+                agent.model.save()
             print(
                 "Game:",
                 agent.number_of_games,
@@ -119,7 +109,6 @@ def train():
             mean_score = total_score / agent.number_of_games
             avg_scores.append(mean_score)
             plot(scores_list, avg_scores)
-
 
 if __name__ == "__main__":
     train()

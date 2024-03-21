@@ -4,13 +4,11 @@ from enum import Enum
 import numpy as np
 from typing import Tuple
 
-# Parameters for every instance
 pygame.init()
 pygame.display.set_caption("PBSnakeAI")
 score_font = pygame.font.SysFont("calibri", 20)
 block_size = 20
 number_of_blocks = 10
-
 
 class Direction(Enum):
     RIGHT = 1
@@ -61,7 +59,7 @@ class PBSnakeAIgame:
         idx = cw.index(self.direction)
 
         if np.array_equal(action, [1, 0, 0]):
-            self.direction = cw[idx]  # No change
+            self.direction = cw[idx]            # No change
         elif np.array_equal(action, [0, 1, 0]):
             self.direction = cw[(idx + 1) % 4]  # Turn clockwise
         elif np.array_equal(action, [0, 0, 1]):
@@ -142,7 +140,7 @@ class PBSnakeAIgame:
             self.snake.pop()
 
         self._drawing_ui()
-        self.clock.tick(60)
+        self.clock.tick(30)
         return game_over, self.score, self.reward
 
     def snake_vision(self):
@@ -156,16 +154,19 @@ class PBSnakeAIgame:
             i += 20
         danger_directions[0] = i / 20 - 1
 
+        #Left
         i = 0
         while not self.detect_collision(pygame.Vector2(x + i, y)):
             i -= 20
         danger_directions[1] = abs(i / 20 + 1)
 
+        #Up
         i = 0
         while not self.detect_collision(pygame.Vector2(x, y + i)):
             i += 20
         danger_directions[2] = i / 20 - 1
-
+        
+        #Down
         i = 0
         while not self.detect_collision(pygame.Vector2(x, y + i)):
             i -= 20
