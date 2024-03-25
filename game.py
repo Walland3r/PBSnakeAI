@@ -4,11 +4,13 @@ from enum import Enum
 import numpy as np
 from typing import Tuple
 
+
 pygame.init()
 pygame.display.set_caption("PBSnakeAI")
 score_font = pygame.font.SysFont("calibri", 20)
 block_size = 20
 number_of_blocks = 10
+
 
 class Direction(Enum):
     RIGHT = 1
@@ -27,6 +29,7 @@ class PBSnakeAIgame:
         self.reward = 0
         self.snake_reset()
 
+
     # Reset of our snake
     def snake_reset(self) -> None:
         self.score = 0
@@ -44,6 +47,7 @@ class PBSnakeAIgame:
         self.direction = Direction.RIGHT
         self._place_food()
 
+
     # Generating new place for a food
     def _place_food(self) -> None:
         self.food = pygame.Vector2(
@@ -53,13 +57,14 @@ class PBSnakeAIgame:
         if self.food in self.snake:
             self._place_food()
 
+
     # Moving snake
     def _move_snake(self, action) -> None:
         cw = [Direction.UP, Direction.RIGHT, Direction.DOWN, Direction.LEFT]
         idx = cw.index(self.direction)
 
         if np.array_equal(action, [1, 0, 0]):
-            self.direction = cw[idx]            # No change
+            self.direction = cw[idx]  # No change
         elif np.array_equal(action, [0, 1, 0]):
             self.direction = cw[(idx + 1) % 4]  # Turn clockwise
         elif np.array_equal(action, [0, 0, 1]):
@@ -77,6 +82,7 @@ class PBSnakeAIgame:
             x -= block_size
 
         self.head = pygame.Vector2(x, y)
+
 
     # Drawing
     def _drawing_ui(self) -> None:
@@ -129,47 +135,42 @@ class PBSnakeAIgame:
         self.snake.insert(0, self.head)
 
         if self.detect_collision() or self.ticks > 70 * len(self.snake):
-            self.reward -= 10
+            self.reward -= 2
             game_over = True
 
         if self.head == self.food:
             self.score += 1
-            self.reward += 20
+            self.reward += 1
             self._place_food()
         else:
             self.snake.pop()
 
         self._drawing_ui()
-        self.clock.tick(30)
+        self.clock.tick(60)
         return game_over, self.score, self.reward
 
     def snake_vision(self):
         danger_directions = [0, 0, 0, 0]
         x = round(self.snake[0].x)
         y = round(self.snake[0].y)
-
         # Right
         i = 0
         while not self.detect_collision(pygame.Vector2(x + i, y)):
             i += 20
         danger_directions[0] = i / 20 - 1
-
-        #Left
+        # Left
         i = 0
         while not self.detect_collision(pygame.Vector2(x + i, y)):
             i -= 20
         danger_directions[1] = abs(i / 20 + 1)
-
-        #Up
+        # Up
         i = 0
         while not self.detect_collision(pygame.Vector2(x, y + i)):
             i += 20
         danger_directions[2] = i / 20 - 1
-        
-        #Down
+        # Down
         i = 0
         while not self.detect_collision(pygame.Vector2(x, y + i)):
             i -= 20
         danger_directions[3] = abs(i / 20 + 1)
-
         return danger_directions

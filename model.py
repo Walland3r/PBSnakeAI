@@ -1,57 +1,104 @@
 import torch
 import torch.nn as nn
-import torch.optim as optim
 import torch.nn.functional as F
-import os
+import torch.optim as optim
+import torch.nn as nn
+import random
+from math import exp
+from collections import deque,namedtuple
 
-class Linear_QNet(nn.Module):
-    def __init__(self,input_size,hidden_size,output_size) -> None:
+BATCH_SIZE = 128
+MEMORY_SIZE = 10000
+GAMMA = 0.99
+EPS_START = 0.9
+EPS_END = 0.05
+EPS_DECAY = 1000
+TAU = 0.005
+LR = 0.001
+
+INPUT_SIZE = 12
+HIDDEN_SIZE = 128
+OUTPUT_SIZE = 3
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+Transition = namedtuple('Transition',
+                        ('state', 'action', 'reward' , 'next_state', 'game_over'))
+
+class ReplayMemory():
+    def __init__(self, capacity):
+        self.memory = deque([], maxlen=capacity)
+
+    def push(self, *args):
+        self.memory.append(Transition(*args))
+
+    def sample(self, batch_size):
+        return random.sample(self.memory, batch_size)
+    
+    def __len__(self):
+        return len(self.memory)
+
+class Deep_QNet(nn.Module):
+    def __init__(self) -> None:
         super().__init__()
-        self.linear1=nn.Linear(input_size,hidden_size)
-        self.linear2=nn.Linear(hidden_size,output_size)
+        self.layer1 = nn.Linear(INPUT_SIZE,  HIDDEN_SIZE)
+        self.layer2 = nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)
+        self.layer3 = nn.Linear(HIDDEN_SIZE, OUTPUT_SIZE)
+        self.actions_taken = 0
 
-    def forward(self,x):
-        x = F.relu(self.linear1(x))
-        x = self.linear2(x)
-        return x
+    def forward(self, x):
+        x = F.relu(self.layer1(x))
+        x = F.relu(self.layer2(x))
+        return self.layer3(x)
     
-    def save(self,file_name='model.pth'):
-        model_folder_path='./model'
-        if not os.path.exists(model_folder_path):
-            os.makedirs(model_folder_path)
-
-        file_name = os.path.join(model_folder_path,file_name)
-        torch.save(self.state_dict(), file_name)
-    
-class QLineTrainer():
-    def __init__(self,model,learning_rate,gamma):
-        self.learning_rate = learning_rate
-        self.gamma = gamma
-        self.model = model
-        self.optimizer = optim.Adam(model.parameters(), lr=self.learning_rate)
+class Trainer():
+    def __init__(self):
         self.criterion = nn.MSELoss()
+        self.steps_done = 0
 
-    def step(self,current_state, action, reward, next_state, game_over):
-        current_state = torch.tensor(current_state, dtype=torch.float)
-        action = torch.tensor(action, dtype=torch.float)
-        reward = torch.tensor(reward, dtype=torch.float)
-        next_state = torch.tensor(next_state, dtype=torch.float)
+        self.predict_model = Deep_QNet().to(device)
+        self.target_model   = Deep_QNet().to(device)
+        self.target_model.load_state_dict(self.predict_model.state_dict())
+        self.optimizer = optim.Adam(self.predict_model.parameters(), lr=LR)
+        self.memory = ReplayMemory(MEMORY_SIZE)
+    
+    def get_action(self, state):
+        sample = random.random()
+        eps_threshold = EPS_END + (EPS_START - EPS_END) * exp(-1. * self.steps_done / EPS_DECAY)
+        self.steps_done += 1
+        move=[0,0,0]
+        if sample > eps_threshold:
+            predicted_move = self.predict_model(torch.tensor(state, dtype=torch.float))
+            move[torch.argmax(predicted_move).item()] = 1
+        else:
+            move[random.randint(0, 2)] = 1
+        return move
+    
+    def optimize(self):
+        if len(self.memory) < BATCH_SIZE:
+            return  # Jeśli pamięć nie zawiera wystarczającej liczby próbek, to nie można optymalizować modelu
 
-        if len(current_state.shape) == 1:
-            current_state = torch.unsqueeze(current_state,0)
-            next_state = torch.unsqueeze(next_state,0)
-            action = torch.unsqueeze(action,0)
-            reward = torch.unsqueeze(reward,0)
-            game_over = (game_over, )
+        transitions = self.memory.sample(BATCH_SIZE)
+        batch = Transition(*zip(*transitions))  # Rozpakowanie krotek Transition w listy stanów, akcji, nagród, itd.
 
-        prediction = self.model(current_state)
-        target = prediction.clone()
-        for i in range (len(game_over)):
-            Q_new = reward[i]
-            if not game_over:
-                Q_new = reward[i]+ self.gamma * torch.max(self.model(next_state[i]))
-            target[i][torch.argmax(action).item()] = Q_new
+        non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)), device=device, dtype=torch.bool)
+        non_final_next_states = torch.tensor([s for s in batch.next_state if s is not None], dtype=torch.float, device=device)
+
+        state_batch = torch.tensor(batch.state, dtype=torch.float, device=device)
+        action_batch = torch.tensor(batch.action, device=device)
+        reward_batch = torch.tensor(batch.reward, dtype=torch.float, device=device)
+
+        state_action_values = self.predict_model(state_batch).gather(1, action_batch.argmax(dim=1, keepdim=True))
+
+        next_state_values = torch.zeros(BATCH_SIZE, device=device)
+        next_state_values[non_final_mask] = self.target_model(non_final_next_states).max(1)[0].detach()
+
+        expected_state_action_values = (next_state_values * GAMMA) + reward_batch
+
+        loss = self.criterion(state_action_values, expected_state_action_values.unsqueeze(1))
+
         self.optimizer.zero_grad()
-        loss = self.criterion(target,prediction)
         loss.backward()
+        for param in self.predict_model.parameters():
+            param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
