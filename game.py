@@ -10,7 +10,7 @@ pygame.display.set_caption("PBSnakeAI")
 score_font = pygame.font.SysFont("calibri", 20)
 block_size = 20
 number_of_blocks = 10
-
+GAME_SPEED = 0
 
 class Direction(Enum):
     RIGHT = 1
@@ -103,7 +103,7 @@ class PBSnakeAIgame:
         score_value = score_font.render("Score: " + str(self.score), True, "red")
         self.screen.blit(score_value, [0, 0])
         # Food
-        pygame.draw.rect(self.screen, "red", [self.food.x + 5, self.food.y + 5, 10, 10])
+        pygame.draw.rect(self.screen, "red", [self.food.x, self.food.y, block_size, block_size])
         pygame.display.flip()
 
     # Detecting collisions between walls and snake itself
@@ -135,7 +135,7 @@ class PBSnakeAIgame:
         self.snake.insert(0, self.head)
 
         if self.detect_collision() or self.ticks > 70 * len(self.snake):
-            self.reward -= 2
+            self.reward -= 20
             game_over = True
 
         if self.head == self.food:
@@ -146,31 +146,5 @@ class PBSnakeAIgame:
             self.snake.pop()
 
         self._drawing_ui()
-        self.clock.tick(60)
+        self.clock.tick(GAME_SPEED)
         return game_over, self.score, self.reward
-
-    def snake_vision(self):
-        danger_directions = [0, 0, 0, 0]
-        x = round(self.snake[0].x)
-        y = round(self.snake[0].y)
-        # Right
-        i = 0
-        while not self.detect_collision(pygame.Vector2(x + i, y)):
-            i += 20
-        danger_directions[0] = i / 20 - 1
-        # Left
-        i = 0
-        while not self.detect_collision(pygame.Vector2(x + i, y)):
-            i -= 20
-        danger_directions[1] = abs(i / 20 + 1)
-        # Up
-        i = 0
-        while not self.detect_collision(pygame.Vector2(x, y + i)):
-            i += 20
-        danger_directions[2] = i / 20 - 1
-        # Down
-        i = 0
-        while not self.detect_collision(pygame.Vector2(x, y + i)):
-            i -= 20
-        danger_directions[3] = abs(i / 20 + 1)
-        return danger_directions
