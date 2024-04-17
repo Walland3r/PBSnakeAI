@@ -8,9 +8,9 @@ from typing import Tuple
 pygame.init()
 pygame.display.set_caption("PBSnakeAI")
 score_font = pygame.font.SysFont("calibri", 20)
-block_size = 20
+block_size = 60
 number_of_blocks = 10
-GAME_SPEED = 0
+GAME_SPEED = 120
 
 class Direction(Enum):
     RIGHT = 1
@@ -38,7 +38,7 @@ class PBSnakeAIgame:
         self.reward = 0
 
         self.head = pygame.Vector2(
-            round(number_of_blocks / 4) * 20, round(number_of_blocks / 4) * 20
+            round(number_of_blocks / 4) * block_size, round(number_of_blocks / 4) * block_size
         )
         self.snake = [
             self.head,
@@ -51,8 +51,8 @@ class PBSnakeAIgame:
     # Generating new place for a food
     def _place_food(self) -> None:
         self.food = pygame.Vector2(
-            random.randint(0, number_of_blocks - 1) * 20,
-            random.randint(0, number_of_blocks - 1) * 20,
+            random.randint(0, number_of_blocks - 1) * block_size,
+            random.randint(0, number_of_blocks - 1) * block_size,
         )
         if self.food in self.snake:
             self._place_food()
@@ -95,9 +95,9 @@ class PBSnakeAIgame:
                 "green",
                 [snake_part.x, snake_part.y, block_size, block_size],
             )
-        pygame.draw.circle(self.screen, "black", [self.head.x + 15, self.head.y + 5], 4)
+        pygame.draw.circle(self.screen, "black", [self.head.x + 0.75*block_size, self.head.y + 0.25*block_size], 0.2*block_size)
         pygame.draw.circle(
-            self.screen, "black", [self.head.x + 15, self.head.y + 15], 4
+            self.screen, "black", [self.head.x + 0.75*block_size, self.head.y + 0.75*block_size], 0.2*block_size
         )
         # Score
         score_value = score_font.render("Score: " + str(self.score), True, "red")
@@ -135,7 +135,7 @@ class PBSnakeAIgame:
         self.snake.insert(0, self.head)
 
         if self.detect_collision() or self.ticks > 70 * len(self.snake):
-            self.reward -= 20
+            self.reward -= 10
             game_over = True
 
         if self.head == self.food:
