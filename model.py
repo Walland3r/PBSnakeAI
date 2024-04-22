@@ -1,22 +1,23 @@
 import torch
-import torch.nn.functional as F
+import torch.nn.functional as f
 import torch.optim as optim
 import torch.nn as nn
 import random
 from math import exp
 from collections import deque, namedtuple
+import os.path as path
 
 BATCH_SIZE = 128
 MEMORY_SIZE = 10000
 GAMMA = 0.9
-EPS_START = 0.95
+EPS_START = 0.1
 EPS_END = 0.01
 EPS_DECAY = 1000
 TAU = 0.005
 LR = 0.001
 
-INPUT_SIZE = 104
-HIDDEN_SIZE = 256
+INPUT_SIZE = 11
+HIDDEN_SIZE = 64
 OUTPUT_SIZE = 3
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -40,7 +41,7 @@ class ReplayMemory:
         return len(self.memory)
 
 
-class Deep_QNet(nn.Module):
+class DeepQNet(nn.Module):
     def __init__(self) -> None:
         super().__init__()
         self.layer1 = nn.Linear(INPUT_SIZE, HIDDEN_SIZE)
@@ -49,8 +50,8 @@ class Deep_QNet(nn.Module):
         self.actions_taken = 0
 
     def forward(self, x):
-        x = F.relu(self.layer1(x))
-        x = F.relu(self.layer2(x))
+        x = f.relu(self.layer1(x))
+        x = f.relu(self.layer2(x))
         return self.layer3(x)
 
 
@@ -59,12 +60,15 @@ class Trainer:
         self.criterion = nn.MSELoss()
         self.steps_done = 0
 
-        self.model = Deep_QNet().to(device)
-        self.target_model = Deep_QNet().to(device)
+        if path.isfile("model.pth"):
+            self.model = torch.load('model.pth')
+        else:
+            self.model = DeepQNet().to(device)
+
+        self.target_model = DeepQNet().to(device)
         self.target_model.load_state_dict(self.model.state_dict())
         self.optimizer = optim.AdamW(self.model.parameters(), lr=LR, amsgrad=True)
         self.memory = ReplayMemory(MEMORY_SIZE)
-        torch.load("model.pth")
 
     def get_action(self, state):
         sample = random.random()
@@ -76,7 +80,7 @@ class Trainer:
             with torch.no_grad():
                 state_tensor = torch.tensor(state, dtype=torch.float, device=device)
                 predicted_move = self.model(state_tensor.unsqueeze(0)).argmax(1)
-            move = F.one_hot(predicted_move, num_classes=OUTPUT_SIZE).view(-1)
+            move = f.one_hot(predicted_move, num_classes=OUTPUT_SIZE).view(-1)
         else:
             move_idx = random.randint(0, OUTPUT_SIZE - 1)
             move = torch.zeros(OUTPUT_SIZE, device=device)
@@ -114,10 +118,10 @@ class Trainer:
         next_state = torch.zeros(BATCH_SIZE, device=device)
         next_state[non_final_mask] = (self.target_model(non_final_next_states).max(1)[0])
 
-        Q_expected = self.model(state).gather(1, action.argmax(dim=1, keepdim=True))
-        Q_target = (next_state * GAMMA) + reward
+        q_expected = self.model(state).gather(1, action.argmax(dim=1, keepdim=True))
+        q_target = (next_state * GAMMA) + reward
 
-        loss = self.criterion(Q_expected, Q_target.unsqueeze(1))
+        loss = self.criterion(q_expected, q_target.unsqueeze(1))
 
         self.optimizer.zero_grad()
         loss.backward()
