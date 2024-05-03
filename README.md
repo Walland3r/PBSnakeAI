@@ -6,31 +6,31 @@ This project implements a Snake game with an AI agent that learns to play the ga
 
 1. Clone this repository:
 
-    ```
-    git clone https://github.com/Szajsenberg/PBSnakeAI.git
-    ```
+`
+git clone https://github.com/Szajsenberg/PBSnakeAI.git
+`
 
 2. Install the required dependencies:
 
-    ```
-    pip install -r requirements.txt
-    ```
+`
+pip install -r requirements.txt
+`
 
 ## Usage
 
 To train the AI agent, run the `train.py` script:
 
-    ```
-    python train.py
-    ```
+`
+python train.py
+`
 
 During training, the agent learns to play the game by interacting with the environment and updating its policy based on received rewards.
 
 To test the trained agent, run the `test.py` script:
 
-    ```
-    python test.py
-    ```
+`
+python test.py
+`
 
 This script runs the trained agent in the game environment and prints the final score achieved.
 
