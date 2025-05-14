@@ -1,19 +1,22 @@
 import numpy as np
-from game import PBSnakeAiGame
-from game import Direction
-from model import Trainer
-from plotter import plot
 from pygame import Vector2
 from torch import save
 
+from game import PBSnakeAiGame, Direction
+from model import Trainer
+from plotter import plot
 
 class GameAgent:
-    def __init__(self) -> None:
+    """Agent that interacts with the Snake game and manages memory."""
+    def __init__(self):
         self.number_of_games = 0
         self.trainer = Trainer()
 
-    def get_gamestate(self, game) -> np.array:
-        # Current snake direction
+    def get_gamestate(self, game):
+        """
+        Returns the current state as a boolean numpy array.
+        State includes danger, direction, and food location.
+        """
         going_up = game.direction == Direction.UP
         going_down = game.direction == Direction.DOWN
         going_right = game.direction == Direction.RIGHT
@@ -30,81 +33,69 @@ class GameAgent:
         dir_d = game.direction == Direction.DOWN
 
         state = [
+            # Danger straight
             (dir_r and game.detect_collision(point_r)) or
             (dir_l and game.detect_collision(point_l)) or
             (dir_u and game.detect_collision(point_u)) or
             (dir_d and game.detect_collision(point_d)),
-
             # Danger right
             (dir_u and game.detect_collision(point_r)) or
             (dir_d and game.detect_collision(point_l)) or
             (dir_l and game.detect_collision(point_u)) or
             (dir_r and game.detect_collision(point_d)),
-
             # Danger left
             (dir_d and game.detect_collision(point_r)) or
             (dir_u and game.detect_collision(point_l)) or
             (dir_r and game.detect_collision(point_u)) or
             (dir_l and game.detect_collision(point_d)),
-
+            # Move direction
             going_up,
             going_down,
             going_right,
             going_left,
-
-            game.food.x < game.head.x,  # food left
-            game.food.x > game.head.x,  # food right
-            game.food.y < game.head.y,  # food up
+            # Food location
+            game.food.x < game.head.x,
+            game.food.x > game.head.x,
+            game.food.y < game.head.y,
             game.food.y > game.head.y
-        ] 
+        ]
         return np.array(state, dtype=bool)
 
-    def remember(self, current_state, action, reward, next_state, game_over):
-        self.trainer.memory.push(current_state, action, reward, next_state, game_over)
-
+    def remember(self, state, action, reward, next_state, done):
+        """Stores the experience in replay memory."""
+        self.trainer.memory.push(state, action, reward, next_state, done)
 
 def train():
-    scores_list = []
-    avg_scores = []
-    total_score = 0
-    score_sum = 0
+    """
+    Main training loop for the agent.
+    Handles game interaction, memory, optimization, and plotting.
+    """
+    scores, avg_scores = [], []
     best_score = 0
     agent = GameAgent()
     game = PBSnakeAiGame()
+    total_score = 0
 
     while True:
-        current_state = agent.get_gamestate(game)
-        predicted_move = agent.trainer.get_action(current_state)
-        game_over, total_score, reward = game.game_frame(predicted_move)
+        state = agent.get_gamestate(game)
+        action = agent.trainer.get_action(state)
+        done, score, reward = game.game_frame(action)
         next_state = agent.get_gamestate(game)
-
-        agent.remember(current_state, predicted_move, reward, next_state, game_over)
+        agent.remember(state, action, reward, next_state, done)
         agent.trainer.optimize()
         agent.trainer.target_network_update()
 
-        if game_over:
+        if done:
             game.snake_reset()
             agent.number_of_games += 1
-            if total_score > best_score:
-                best_score = total_score
-                agent.trainer.target_network_update()
-                save(agent.trainer.model, 'model.pth')
-            print(
-                "Game:",
-                agent.number_of_games,
-                "Score:",
-                total_score,
-                "Record:",
-                best_score,
-                "Reward:",
-                reward,
-            )
-            scores_list.append(total_score)
-            score_sum += total_score
-            mean_score = score_sum / agent.number_of_games
-            avg_scores.append(mean_score)
-            plot(scores_list, avg_scores)
-
+            if score > best_score:
+                best_score = score
+                save(agent.trainer.model.state_dict(), 'model.pth')
+            scores.append(score)
+            total_score += score
+            avg_scores.append(total_score / agent.number_of_games)
+            print(f"Game: {agent.number_of_games} Score: {score} Record: {best_score}")
+            plot(scores, avg_scores)
 
 if __name__ == "__main__":
     train()

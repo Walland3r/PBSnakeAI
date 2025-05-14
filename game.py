@@ -4,41 +4,36 @@ from enum import Enum
 import numpy as np
 from typing import Tuple
 
+from config import NUMBER_OF_BLOCKS, GAME_SPEED, COLLISION_PENALTY, FOOD_REWARD, FINISH_REWARD
+
+# Initialize pygame and set up display
 pygame.init()
 pygame.display.set_caption("PBSnakeAI")
 score_font = pygame.font.SysFont("calibri", 20)
-number_of_blocks = 10
-GAME_SPEED = 60
-
 
 class Direction(Enum):
+    """Possible movement directions for the snake."""
     RIGHT = 1
     LEFT = 2
     UP = 3
     DOWN = 4
 
-
 class PBSnakeAiGame:
-    # Initialization of the game
-    def __init__(self) -> None:
+    """Main game class for the Snake AI environment."""
+    def __init__(self):
         self.block_size = 30
-        self.screen_size = number_of_blocks * self.block_size
+        self.screen_size = NUMBER_OF_BLOCKS * self.block_size
         self.screen = pygame.display.set_mode([self.screen_size, self.screen_size])
         self.clock = pygame.time.Clock()
-        self.ticks = 0
-        self.reward = 0
         self.snake_reset()
         self.boundaries = self.get_boundaries()
 
-    # Reset whole game
-    def snake_reset(self) -> None:
+    def snake_reset(self):
+        """Resets the snake and game state."""
         self.score = 0
         self.ticks = 0
-        self.game_over = 0
-        self.reward = 0
-
         self.head = pygame.Vector2(
-            round(number_of_blocks / 4) * self.block_size, round(number_of_blocks / 4) * self.block_size
+            round(NUMBER_OF_BLOCKS / 4) * self.block_size, round(NUMBER_OF_BLOCKS / 4) * self.block_size
         )
         self.snake = [
             self.head,
@@ -47,37 +42,39 @@ class PBSnakeAiGame:
         self.direction = Direction.RIGHT
         self._place_food()
 
-    # Generating new place for a food
-    def _place_food(self) -> None:
+    def _place_food(self):
+        """Places food at a random location not occupied by the snake."""
         self.food = pygame.Vector2(
-            random.randint(1, number_of_blocks - 2) * self.block_size,
-            random.randint(1, number_of_blocks - 2) * self.block_size,
+            random.randint(1, NUMBER_OF_BLOCKS - 2) * self.block_size,
+            random.randint(1, NUMBER_OF_BLOCKS - 2) * self.block_size,
         )
         if self.food in self.snake:
             self._place_food()
 
-    def get_boundaries(self) -> list:
+    def get_boundaries(self):
+        """Returns a list of boundary cells as Vector2 objects."""
         boundaries = []
-        for i in range(number_of_blocks):
-            for j in range(number_of_blocks):
-                if (i == 0 or j == 0) or (i == number_of_blocks - 1 or j == number_of_blocks - 1):
-                    boundaries.append(pygame.Vector2(i*self.block_size, j*self.block_size))
+        for i in range(NUMBER_OF_BLOCKS):
+            for j in range(NUMBER_OF_BLOCKS):
+                if (i == 0 or j == 0) or (i == NUMBER_OF_BLOCKS - 1 or j == NUMBER_OF_BLOCKS - 1):
+                    boundaries.append(pygame.Vector2(i * self.block_size, j * self.block_size))
         return boundaries
 
-    # Moving snake
-    def _move_snake(self, action) -> None:
+    def _move_snake(self, action):
+        """
+        Moves the snake in the direction based on the action.
+        action: [straight, right turn, left turn]
+        """
         cw = [Direction.UP, Direction.RIGHT, Direction.DOWN, Direction.LEFT]
         idx = cw.index(self.direction)
-
         if np.array_equal(action, [1, 0, 0]):
-            self.direction = cw[idx]  # No change
+            self.direction = cw[idx]
         elif np.array_equal(action, [0, 1, 0]):
-            self.direction = cw[(idx + 1) % 4]  # Turn clockwise
+            self.direction = cw[(idx + 1) % 4]
         elif np.array_equal(action, [0, 0, 1]):
-            self.direction = cw[(idx - 1) % 4]  # Turn counter-clockwise
+            self.direction = cw[(idx - 1) % 4]
 
-        x = self.head.x
-        y = self.head.y
+        x, y = self.head.x, self.head.y
         if self.direction == Direction.UP:
             y -= self.block_size
         elif self.direction == Direction.DOWN:
@@ -86,53 +83,36 @@ class PBSnakeAiGame:
             x += self.block_size
         elif self.direction == Direction.LEFT:
             x -= self.block_size
-
         self.head = pygame.Vector2(x, y)
 
-    # Drawing
-    def _drawing_ui(self) -> None:
-        # Background
+    def _drawing_ui(self):
+        """Draws the game UI including snake, food, boundaries, and score."""
         self.screen.fill(pygame.Color("#100C08"))
-        # Snake
         for snake_part in self.snake:
-            pygame.draw.rect(
-                self.screen,
-                "green",
-                [snake_part.x, snake_part.y, self.block_size, self.block_size],
-            )
-
-        # Score
+            pygame.draw.rect(self.screen, "green", [snake_part.x, snake_part.y, self.block_size, self.block_size])
         score_value = score_font.render("Score: " + str(self.score), True, "red")
         self.screen.blit(score_value, [0, 0])
-
-        # Food
-        pygame.draw.rect(self.screen,
-                         "red",
-                         [self.food.x, self.food.y, self.block_size, self.block_size])
-
-        # Boundaries
+        pygame.draw.rect(self.screen, "red", [self.food.x, self.food.y, self.block_size, self.block_size])
         for cell in self.boundaries:
-            pygame.draw.rect(self.screen,
-                             "gray",
-                             [cell.x, cell.y, self.block_size, self.block_size])
-
+            pygame.draw.rect(self.screen, "gray", [cell.x, cell.y, self.block_size, self.block_size])
         pygame.display.flip()
 
-    # Detecting collisions between walls and snake itself
-    def detect_collision(self, pt=None) -> bool:
+    def detect_collision(self, pt=None):
+        """
+        Checks if the given point collides with boundaries or the snake itself.
+        If pt is None, checks the snake's head.
+        """
         if pt is None:
             pt = self.head
-        # Hit the boundary
-        if pt in self.boundaries:
-            return True
-        # Hit itself
-        if pt in self.snake[1:]:
+        if pt in self.boundaries or pt in self.snake[1:]:
             return True
         return False
 
-    # Every game frame
     def game_frame(self, action) -> Tuple[bool, int, int]:
-        game_over = False
+        """
+        Executes one frame of the game.
+        Returns: (game_over, score, step_reward)
+        """
         self.ticks += 1
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -140,18 +120,29 @@ class PBSnakeAiGame:
                 quit()
         self._move_snake(action)
         self.snake.insert(0, self.head)
+        step_reward = 0
+        game_over = False
+
+        # Check if snake has filled all available spaces (excluding boundaries)
+        max_snake_length = (NUMBER_OF_BLOCKS - 2) * (NUMBER_OF_BLOCKS - 2)
+        finished = len(self.snake) == max_snake_length
 
         if self.detect_collision() or self.ticks > 70 * len(self.snake):
-            self.reward -= 2
+            step_reward -= COLLISION_PENALTY
             game_over = True
 
         if self.head == self.food:
             self.score += 1
-            self.reward += 1
+            step_reward += FOOD_REWARD
             self._place_food()
         else:
             self.snake.pop()
 
+        # Grant finish reward only if snake filled all spaces
+        if finished:
+            step_reward += FINISH_REWARD
+            game_over = True
+
         self._drawing_ui()
         self.clock.tick(GAME_SPEED)
-        return game_over, self.score, self.reward
+        return game_over, self.score, step_reward

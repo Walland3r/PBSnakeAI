@@ -1,47 +1,88 @@
-# Snake AI with Reinforcement Learning
+# PBSnakeAI – Snake z Uczącą się Sztuczną Inteligencją
 
-This project implements a Snake game with an AI agent that learns to play the game using reinforcement learning. The agent learns to navigate the snake to collect food while avoiding collisions with walls and its own body.
+PBSnakeAI to projekt implementujący klasyczną grę Snake, w której agent AI uczy się grać przy użyciu uczenia ze wzmocnieniem (Reinforcement Learning, RL). Celem agenta jest zbieranie jedzenia i unikanie kolizji ze ścianami oraz własnym ciałem. Projekt wykorzystuje Deep Q-Network (DQN) do nauki optymalnej strategii gry.
 
-## Installation
+## Funkcjonalności
 
-1. Clone this repository:
+- **Automatyczna nauka gry w Snake** – agent uczy się samodzielnie grać, poprawiając swoje wyniki w trakcie treningu.
+- **Wizualizacja rozgrywki i postępów** – gra rysowana jest w oknie Pygame, a wyniki treningu są na bieżąco wyświetlane na wykresie.
+- **Możliwość testowania wytrenowanego agenta** – sprawdź, jak dobrze agent radzi sobie po zakończonym treningu.
+- **Łatwa konfiguracja parametrów** – wszystkie kluczowe parametry gry i modelu znajdują się w pliku `config.py`.
+
+## Instalacja
+
+1. Sklonuj repozytorium:
+
+   ```
+   git clone https://github.com/Szajsenberg/PBSnakeAI.git
+   cd PBSnakeAI
+   ```
+
+2. Zainstaluj zależności:
+
+   ```
+   pip install -r requirements.txt
+   ```
+
+## Szybki start
+
+### Trening agenta
+
+Aby rozpocząć trening AI, uruchom:
 
 ```
-git clone https://github.com/Szajsenberg/PBSnakeAI.git
+python agent.py
 ```
 
-2. Install the required dependencies:
+Podczas treningu agent będzie rozgrywał kolejne gry, ucząc się na podstawie nagród i kar. Wyniki oraz średnie wyniki będą wyświetlane na wykresie.
 
-```
-pip install -r requirements.txt
-```
+### Testowanie wytrenowanego agenta
 
-## Usage
-
-To train the AI agent, run the `train.py` script:
-
-```
-python train.py
-```
-
-During training, the agent learns to play the game by interacting with the environment and updating its policy based on received rewards.
-
-To test the trained agent, run the `test.py` script:
+Aby przetestować agenta po treningu (wykorzystując zapisany model):
 
 ```
 python test.py
 ```
 
-This script runs the trained agent in the game environment and prints the final score achieved.
-
-## Components
-
-- `game.py`: Implements the Snake game environment.
-- `agent.py`: Defines the AI agent responsible for interacting with the game environment and learning.
-- `model.py`: Contains the neural network model used by the AI agent.
-- `plotter.py`: Provides functions for plotting game scores and performance metrics.
+Agent rozegra kilka gier, a wyniki zostaną wyświetlone w konsoli oraz na wykresie.
 
 
-## Contributing
+## Struktura projektu
 
-Oskar Walawender
+```
+PBSnakeAI/
+│
+├── agent.py      # Logika agenta RL, trening i interakcja z grą
+├── game.py       # Implementacja gry Snake (Pygame)
+├── model.py      # Definicja sieci neuronowej i mechanizmu DQN
+├── config.py     # Parametry gry i modelu
+├── plotter.py    # Wizualizacja wyników (wykresy)
+├── test.py       # Skrypt do testowania wytrenowanego agenta
+├── requirements.txt
+└── README.md
+```
+
+## Opis działania
+
+- **agent.py** – Główny plik treningowy. Agent obserwuje stan gry, podejmuje decyzje, zapamiętuje doświadczenia i uczy się na ich podstawie.
+- **game.py** – Obsługuje logikę gry, rysowanie planszy, obsługę kolizji i generowanie jedzenia.
+- **model.py** – Zawiera definicję sieci neuronowej (Deep Q-Network), replay memory oraz algorytm optymalizacji.
+- **config.py** – Pozwala łatwo zmieniać parametry gry i modelu (np. rozmiar planszy, szybkość gry, parametry RL).
+- **plotter.py** – Tworzy wykresy wyników i średnich wyników w czasie rzeczywistym.
+- **test.py** – Umożliwia ocenę skuteczności wytrenowanego agenta bez dalszego uczenia.
+
+## Konfiguracja
+
+W pliku `config.py` możesz zmieniać m.in.:
+- Rozmiar planszy (`NUMBER_OF_BLOCKS`)
+- Szybkość gry (`GAME_SPEED`)
+- Nagrody i kary (`FOOD_REWARD`, `COLLISION_PENALTY`, `FINISH_REWARD`)
+- Parametry sieci i uczenia (`BATCH_SIZE`, `GAMMA`, `LR`, itp.)
+
+## Wizualizacja wyników
+
+Podczas treningu i testowania na ekranie pojawia się wykres przedstawiający:
+- Wynik każdej gry (score)
+- Średnią z wyników (average score)
+
+Dzięki temu możesz na bieżąco obserwować postępy agenta.
